@@ -14,7 +14,7 @@ import (
 func erebor(s string) string {
 	conn, err := net.Dial("tcp", "127.0.0.1:8044")
 	if err != nil {
-		return "error => could not connect to erebor\n"
+		return "(error): could not connect to erebor\n"
 	}
 	fmt.Fprintf(conn, s)
 	status, err := bufio.NewReader(conn).ReadString('\n')
@@ -63,7 +63,7 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/adduser", adduser)
-	http.HandleFunc("/auth", auth)
+	http.HandleFunc("/api/adduser", adduser)
+	http.HandleFunc("/api/auth", auth)
 	http.ListenAndServe(":80", nil)
 }
