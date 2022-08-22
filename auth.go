@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"strings"
@@ -35,12 +36,12 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 	e := strings.TrimRight(erebor(s), "\n")
 	if e == "OK" {
 		fmt.Fprintf(w, "{\"user\":\"%s\"}\n", id)
-		fmt.Println("adduser", id, "=> success")
+		log.Println("adduser", id, "=> success")
 		s := fmt.Sprintf("del token %s", id)
 		erebor(s)
 	} else {
 		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
-		fmt.Println("adduser", id, "=> failed")
+		log.Println("adduser", id, "=> failed")
 	}
 }
 
@@ -55,15 +56,15 @@ func auth(w http.ResponseWriter, r *http.Request) {
 		s := fmt.Sprintf("set token %s %x", id, sha256.Sum256([]byte(t)))
 		erebor(s)
 		fmt.Fprintf(w, "{\"token\":\"%s\"}\n", t)
-		fmt.Println("auth", id, "=> success")
+		log.Println("auth", id, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Authentication failed\"}")
-		fmt.Println("auth", id, "=> failed")
+		log.Println("auth", id, "=> failed")
 	}
 }
 
 func main() {
 	http.HandleFunc("/api/adduser", adduser)
 	http.HandleFunc("/api/auth", auth)
-	http.ListenAndServe(":80", nil)
+	log.Fatal(http.ListenAndServe(":80", nil))
 }
