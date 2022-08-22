@@ -36,6 +36,8 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 	if e == "OK" {
 		fmt.Fprintf(w, "{\"user\":\"%s\"}\n", id)
 		fmt.Println("adduser", id, "=> success")
+		s := fmt.Sprintf("del token %s", id)
+		erebor(s)
 	} else {
 		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
 		fmt.Println("adduser", id, "=> failed")
