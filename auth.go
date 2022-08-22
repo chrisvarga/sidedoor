@@ -52,7 +52,7 @@ func auth(w http.ResponseWriter, r *http.Request) {
 	auth := erebor(s)
 	if strings.TrimRight(auth, "\n") == hex.EncodeToString(h[:]) {
 		t := token()
-		s := fmt.Sprintf("set token %s %s", id, t)
+		s := fmt.Sprintf("set token %s %x", id, sha256.Sum256([]byte(t)))
 		erebor(s)
 		fmt.Fprintf(w, "{\"token\":\"%s\"}\n", t)
 		fmt.Println("auth", id, "=> success")
