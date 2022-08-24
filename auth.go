@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 )
 
@@ -35,6 +36,16 @@ func authentication(r *http.Request) (string, string, string) {
 	return username, password, token
 }
 
+func authentication2(r string) (string, string, string) {
+	var authentication Authentication
+	json.Unmarshal([]byte(r), &authentication)
+
+	username := authentication.Username
+	password := authentication.Password
+	token := authentication.Token
+	return username, password, token
+}
+
 func erebor(s string) string {
 	conn, err := net.Dial("tcp", "127.0.0.1:8044")
 	if err != nil {
@@ -44,6 +55,21 @@ func erebor(s string) string {
 	fmt.Fprintf(conn, s)
 	status, err := bufio.NewReader(conn).ReadString('\n')
 	return strings.TrimRight(status, "\n")
+}
+
+func store(table string, data string) {
+	err := os.WriteFile(table, []byte(data), 0644)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func read(table string) string {
+	data, err := os.ReadFile(table)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return string(data)
 }
 
 func token() string {
@@ -136,7 +162,12 @@ func auth(w http.ResponseWriter, r *http.Request) {
 		t := token()
 		s := fmt.Sprintf("set token %s %x", username, sha256.Sum256([]byte(t)))
 		erebor(s)
-		fmt.Fprintf(w, "{\"username\":\"%s\",\"token\":\"%s\"}\n", username, t)
+		s = fmt.Sprintf("{\"username\":\"%s\",\"token\":\"%x\"}", username, sha256.Sum256([]byte(t)))
+		store(username, s)
+		log.Println(read(username))
+		u, p, tt := authentication2(read(username))
+		log.Println(u, p, tt)
+		fmt.Fprintf(w, "{\"username\":\"%s\",\"token\":\"%x\"}\n", username, t)
 		log.Println("auth", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Authentication failed\"}")
