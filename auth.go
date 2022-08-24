@@ -37,13 +37,20 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 		log.Println("adduser", id, "=> failed")
 		return
 	}
+	s := fmt.Sprintf("get user %s", id)
+	if erebor(s) != "(error): key not found" {
+		// User already exists; but don't reveal that.
+		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
+		log.Println("adduser", id, "=> failed")
+		return
+	}
 	h := sha256.Sum256([]byte(pw))
-	s := fmt.Sprintf("set user %s %x", id, h)
+	s = fmt.Sprintf("set user %s %x", id, h)
 	e := erebor(s)
 	if e == "OK" {
-		fmt.Fprintf(w, "{\"user\":\"%s\"}\n", id)
+		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", id)
 		log.Println("adduser", id, "=> success")
-		s := fmt.Sprintf("del token %s", id)
+		s = fmt.Sprintf("del token %s", id)
 		erebor(s)
 	} else {
 		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
@@ -62,11 +69,43 @@ func deluser(w http.ResponseWriter, r *http.Request) {
 		erebor(s)
 		s = fmt.Sprintf("del token %s", id)
 		erebor(s)
-		fmt.Fprintf(w, "{\"user\":\"%s\"}\n", id)
+		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", id)
 		log.Println("deluser", id, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
 		log.Println("deluser", id, "=> failed")
+	}
+}
+
+func setuser(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	pw := r.URL.Query().Get("pw")
+	tk := r.URL.Query().Get("tk")
+
+	if id == "" || pw == "" {
+		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
+		log.Println("setuser", id, "=> failed")
+		return
+	}
+	s := fmt.Sprintf("get user %s", id)
+	if erebor(s) == "(error): key not found" {
+		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
+		log.Println("setuser", id, "=> failed")
+		return
+	}
+
+	h := sha256.Sum256([]byte(tk))
+	s = fmt.Sprintf("get token %s", id)
+	auth := erebor(s)
+	if auth == hex.EncodeToString(h[:]) {
+		h = sha256.Sum256([]byte(pw))
+		s := fmt.Sprintf("set user %s %x", id, h)
+		erebor(s)
+		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", id)
+		log.Println("setuser", id, "=> success")
+	} else {
+		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
+		log.Println("setuser", id, "=> failed")
 	}
 }
 
@@ -91,6 +130,7 @@ func auth(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/api/adduser", adduser)
 	http.HandleFunc("/api/deluser", deluser)
+	http.HandleFunc("/api/setuser", setuser)
 	http.HandleFunc("/api/auth", auth)
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
