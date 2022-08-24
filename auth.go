@@ -30,100 +30,100 @@ func token() string {
 }
 
 func adduser(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	pw := r.URL.Query().Get("pw")
-	if id == "" || pw == "" {
+	username := r.URL.Query().Get("username")
+	password := r.URL.Query().Get("password")
+	if username == "" || password == "" {
 		fmt.Fprintf(w, "{\"error\":\"Missing username or password\"}\n")
-		log.Println("adduser", id, "=> failed")
+		log.Println("adduser", username, "=> failed")
 		return
 	}
-	s := fmt.Sprintf("get user %s", id)
+	s := fmt.Sprintf("get user %s", username)
 	if erebor(s) != "(error): key not found" {
 		// User already exists; but don't reveal that.
 		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
-		log.Println("adduser", id, "=> failed")
+		log.Println("adduser", username, "=> failed")
 		return
 	}
-	h := sha256.Sum256([]byte(pw))
-	s = fmt.Sprintf("set user %s %x", id, h)
+	h := sha256.Sum256([]byte(password))
+	s = fmt.Sprintf("set user %s %x", username, h)
 	e := erebor(s)
 	if e == "OK" {
-		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", id)
-		log.Println("adduser", id, "=> success")
-		s = fmt.Sprintf("del token %s", id)
+		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
+		log.Println("adduser", username, "=> success")
+		s = fmt.Sprintf("del token %s", username)
 		erebor(s)
 	} else {
 		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
-		log.Println("adduser", id, "=> failed")
+		log.Println("adduser", username, "=> failed")
 	}
 }
 
 func deluser(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	tk := r.URL.Query().Get("tk")
-	h := sha256.Sum256([]byte(tk))
-	s := fmt.Sprintf("get token %s", id)
+	username := r.URL.Query().Get("username")
+	token := r.URL.Query().Get("token")
+	h := sha256.Sum256([]byte(token))
+	s := fmt.Sprintf("get token %s", username)
 	auth := erebor(s)
 	if auth == hex.EncodeToString(h[:]) {
-		s := fmt.Sprintf("del user %s", id)
+		s := fmt.Sprintf("del user %s", username)
 		erebor(s)
-		s = fmt.Sprintf("del token %s", id)
+		s = fmt.Sprintf("del token %s", username)
 		erebor(s)
-		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", id)
-		log.Println("deluser", id, "=> success")
+		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
+		log.Println("deluser", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("deluser", id, "=> failed")
+		log.Println("deluser", username, "=> failed")
 	}
 }
 
 func setuser(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	pw := r.URL.Query().Get("pw")
-	tk := r.URL.Query().Get("tk")
+	username := r.URL.Query().Get("username")
+	password := r.URL.Query().Get("password")
+	token := r.URL.Query().Get("token")
 
-	if id == "" || pw == "" {
+	if username == "" || password == "" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
-		log.Println("setuser", id, "=> failed")
+		log.Println("setuser", username, "=> failed")
 		return
 	}
-	s := fmt.Sprintf("get user %s", id)
+	s := fmt.Sprintf("get user %s", username)
 	if erebor(s) == "(error): key not found" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("setuser", id, "=> failed")
+		log.Println("setuser", username, "=> failed")
 		return
 	}
 
-	h := sha256.Sum256([]byte(tk))
-	s = fmt.Sprintf("get token %s", id)
+	h := sha256.Sum256([]byte(token))
+	s = fmt.Sprintf("get token %s", username)
 	auth := erebor(s)
 	if auth == hex.EncodeToString(h[:]) {
-		h = sha256.Sum256([]byte(pw))
-		s := fmt.Sprintf("set user %s %x", id, h)
+		h = sha256.Sum256([]byte(password))
+		s := fmt.Sprintf("set user %s %x", username, h)
 		erebor(s)
-		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", id)
-		log.Println("setuser", id, "=> success")
+		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
+		log.Println("setuser", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("setuser", id, "=> failed")
+		log.Println("setuser", username, "=> failed")
 	}
 }
 
 func auth(w http.ResponseWriter, r *http.Request) {
-	id := r.URL.Query().Get("id")
-	pw := r.URL.Query().Get("pw")
-	h := sha256.Sum256([]byte(pw))
-	s := fmt.Sprintf("get user %s", id)
+	username := r.URL.Query().Get("username")
+	password := r.URL.Query().Get("password")
+	h := sha256.Sum256([]byte(password))
+	s := fmt.Sprintf("get user %s", username)
 	auth := erebor(s)
 	if auth == hex.EncodeToString(h[:]) {
 		t := token()
-		s := fmt.Sprintf("set token %s %x", id, sha256.Sum256([]byte(t)))
+		s := fmt.Sprintf("set token %s %x", username, sha256.Sum256([]byte(t)))
 		erebor(s)
 		fmt.Fprintf(w, "{\"token\":\"%s\"}\n", t)
-		log.Println("auth", id, "=> success")
+		log.Println("auth", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Authentication failed\"}")
-		log.Println("auth", id, "=> failed")
+		log.Println("auth", username, "=> failed")
 	}
 }
 
