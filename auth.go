@@ -19,7 +19,7 @@ func erebor(s string) string {
 	}
 	fmt.Fprintf(conn, s)
 	status, err := bufio.NewReader(conn).ReadString('\n')
-	return status
+	return strings.TrimRight(status, "\n")
 }
 
 func token() string {
@@ -33,7 +33,7 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 	pw := r.URL.Query().Get("pw")
 	h := sha256.Sum256([]byte(pw))
 	s := fmt.Sprintf("set user %s %x", id, h)
-	e := strings.TrimRight(erebor(s), "\n")
+	e := erebor(s)
 	if e == "OK" {
 		fmt.Fprintf(w, "{\"user\":\"%s\"}\n", id)
 		log.Println("adduser", id, "=> success")
@@ -51,7 +51,7 @@ func auth(w http.ResponseWriter, r *http.Request) {
 	h := sha256.Sum256([]byte(pw))
 	s := fmt.Sprintf("get user %s", id)
 	auth := erebor(s)
-	if strings.TrimRight(auth, "\n") == hex.EncodeToString(h[:]) {
+	if auth == hex.EncodeToString(h[:]) {
 		t := token()
 		s := fmt.Sprintf("set token %s %x", id, sha256.Sum256([]byte(t)))
 		erebor(s)
