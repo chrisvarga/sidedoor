@@ -5,12 +5,35 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
 	"strings"
 )
+
+type Authentication struct {
+	Username string
+	Password string
+	Token    string
+}
+
+func authentication(r *http.Request) (string, string, string) {
+	var authentication Authentication
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	json.Unmarshal(body, &authentication)
+
+	username := authentication.Username
+	password := authentication.Password
+	token := authentication.Token
+	return username, password, token
+}
 
 func erebor(s string) string {
 	conn, err := net.Dial("tcp", "127.0.0.1:8044")
@@ -30,8 +53,7 @@ func token() string {
 }
 
 func adduser(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
-	password := r.FormValue("password")
+	username, password, _ := authentication(r)
 	if username == "" || password == "" {
 		fmt.Fprintf(w, "{\"error\":\"Missing username or password\"}\n")
 		log.Println("adduser", username, "=> failed")
@@ -59,8 +81,7 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 }
 
 func deluser(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
-	token := r.FormValue("token")
+	username, _, token := authentication(r)
 	h := sha256.Sum256([]byte(token))
 	s := fmt.Sprintf("get token %s", username)
 	auth := erebor(s)
@@ -78,10 +99,7 @@ func deluser(w http.ResponseWriter, r *http.Request) {
 }
 
 func setuser(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
-	password := r.FormValue("password")
-	token := r.FormValue("token")
-
+	username, password, token := authentication(r)
 	if username == "" || password == "" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
 		log.Println("setuser", username, "=> failed")
@@ -110,8 +128,7 @@ func setuser(w http.ResponseWriter, r *http.Request) {
 }
 
 func auth(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
-	password := r.FormValue("password")
+	username, password, _ := authentication(r)
 	h := sha256.Sum256([]byte(password))
 	s := fmt.Sprintf("get user %s", username)
 	auth := erebor(s)
