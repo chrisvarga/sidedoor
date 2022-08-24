@@ -30,8 +30,8 @@ func token() string {
 }
 
 func adduser(w http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
-	password := r.URL.Query().Get("password")
+	username := r.FormValue("username")
+	password := r.FormValue("password")
 	if username == "" || password == "" {
 		fmt.Fprintf(w, "{\"error\":\"Missing username or password\"}\n")
 		log.Println("adduser", username, "=> failed")
@@ -59,8 +59,8 @@ func adduser(w http.ResponseWriter, r *http.Request) {
 }
 
 func deluser(w http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
-	token := r.URL.Query().Get("token")
+	username := r.FormValue("username")
+	token := r.FormValue("token")
 	h := sha256.Sum256([]byte(token))
 	s := fmt.Sprintf("get token %s", username)
 	auth := erebor(s)
@@ -78,9 +78,9 @@ func deluser(w http.ResponseWriter, r *http.Request) {
 }
 
 func setuser(w http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
-	password := r.URL.Query().Get("password")
-	token := r.URL.Query().Get("token")
+	username := r.FormValue("username")
+	password := r.FormValue("password")
+	token := r.FormValue("token")
 
 	if username == "" || password == "" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
@@ -110,8 +110,8 @@ func setuser(w http.ResponseWriter, r *http.Request) {
 }
 
 func auth(w http.ResponseWriter, r *http.Request) {
-	username := r.URL.Query().Get("username")
-	password := r.URL.Query().Get("password")
+	username := r.FormValue("username")
+	password := r.FormValue("password")
 	h := sha256.Sum256([]byte(password))
 	s := fmt.Sprintf("get user %s", username)
 	auth := erebor(s)
@@ -119,7 +119,7 @@ func auth(w http.ResponseWriter, r *http.Request) {
 		t := token()
 		s := fmt.Sprintf("set token %s %x", username, sha256.Sum256([]byte(t)))
 		erebor(s)
-		fmt.Fprintf(w, "{\"token\":\"%s\"}\n", t)
+		fmt.Fprintf(w, "{\"username\":\"%s\",\"token\":\"%s\"}\n", username, t)
 		log.Println("auth", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Authentication failed\"}")
@@ -128,9 +128,9 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/api/adduser", adduser)
-	http.HandleFunc("/api/deluser", deluser)
-	http.HandleFunc("/api/setuser", setuser)
-	http.HandleFunc("/api/auth", auth)
+	http.HandleFunc("/api/v1/adduser", adduser)
+	http.HandleFunc("/api/v1/deluser", deluser)
+	http.HandleFunc("/api/v1/setuser", setuser)
+	http.HandleFunc("/api/v1/auth", auth)
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
