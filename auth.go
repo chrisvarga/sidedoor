@@ -49,14 +49,14 @@ func read(table string) map[string]interface{} {
 //   store("token", t)
 func store(table string, data map[string]interface{}) {
 	s, _ := json.MarshalIndent(data, "", "    ")
-	err := os.WriteFile(table, []byte(s), 0644)
+	err := os.WriteFile(table, append([]byte(s), "\n"...), 0644)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
 func token() string {
-	b := make([]byte, 10)
+	b := make([]byte, 20)
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)
 }
