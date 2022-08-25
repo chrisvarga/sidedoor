@@ -61,17 +61,17 @@ func token() string {
 	return fmt.Sprintf("%x", b)
 }
 
-func create(w http.ResponseWriter, r *http.Request) {
+func signup(w http.ResponseWriter, r *http.Request) {
 	username, password, _ := parse(r)
 	if username == "" || password == "" {
 		fmt.Fprintf(w, "{\"error\":\"Username or password cannot be empty\"}\n")
-		log.Println("create", username, "=> failed")
+		log.Println("signup", username, "=> failed")
 		return
 	}
 	users := read("users")
 	if users[username] != nil {
 		fmt.Fprintf(w, "{\"error\":\"Username is invalid or already taken\"}\n")
-		log.Println("create", username, "=> failed")
+		log.Println("signup", username, "=> failed")
 		return
 	}
 
@@ -85,7 +85,7 @@ func create(w http.ResponseWriter, r *http.Request) {
 	store("tokens", tokens)
 
 	fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
-	log.Println("create", username, "=> success")
+	log.Println("signup", username, "=> success")
 }
 
 func remove(w http.ResponseWriter, r *http.Request) {
@@ -166,7 +166,7 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/api/v1/create", create)
+	http.HandleFunc("/api/v1/signup", signup)
 	http.HandleFunc("/api/v1/remove", remove)
 	http.HandleFunc("/api/v1/update", update)
 	http.HandleFunc("/api/v1/auth", auth)
