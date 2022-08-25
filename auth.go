@@ -171,4 +171,5 @@ func main() {
 	http.HandleFunc("/api/v1/update", update)
 	http.HandleFunc("/api/v1/auth", auth)
 	log.Fatal(http.ListenAndServe(":80", nil))
+	// log.Fatal(http.ListenAndServeTLS(":443", "cert.pem", "key.pem", nil))
 }
