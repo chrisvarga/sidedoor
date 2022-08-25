@@ -61,37 +61,34 @@ func token() string {
 	return fmt.Sprintf("%x", b)
 }
 
-func adduser(w http.ResponseWriter, r *http.Request) {
+func create(w http.ResponseWriter, r *http.Request) {
 	username, password, _ := parse(r)
 	if username == "" || password == "" {
-		fmt.Fprintf(w, "{\"error\":\"Missing username or password\"}\n")
-		log.Println("adduser", username, "=> failed")
+		fmt.Fprintf(w, "{\"error\":\"Username or password cannot be empty\"}\n")
+		log.Println("create", username, "=> failed")
 		return
 	}
 	users := read("users")
 	if users[username] != nil {
-		// User already exists; but don't reveal that.
-		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
-		log.Println("adduser", username, "=> failed")
+		fmt.Fprintf(w, "{\"error\":\"Username is invalid or already taken\"}\n")
+		log.Println("create", username, "=> failed")
 		return
 	}
 
-	// Hash the password before storing it.
 	h := sha256.Sum256([]byte(password))
 	s := fmt.Sprintf("%x", h)
 	users[username] = s
 	store("users", users)
 
-	// Delete any old tokens.
 	tokens := read("tokens")
 	delete(tokens, username)
 	store("tokens", tokens)
 
 	fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
-	log.Println("adduser", username, "=> success")
+	log.Println("create", username, "=> success")
 }
 
-func deluser(w http.ResponseWriter, r *http.Request) {
+func remove(w http.ResponseWriter, r *http.Request) {
 	username, _, t := parse(r)
 	h := sha256.Sum256([]byte(t))
 	tokens := read("tokens")
@@ -104,32 +101,31 @@ func deluser(w http.ResponseWriter, r *http.Request) {
 		store("users", users)
 		store("tokens", tokens)
 		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
-		log.Println("deluser", username, "=> success")
+		log.Println("remove", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("deluser", username, "=> failed")
+		log.Println("remove", username, "=> failed")
 	}
 }
 
-func setuser(w http.ResponseWriter, r *http.Request) {
+func update(w http.ResponseWriter, r *http.Request) {
 	username, password, token := parse(r)
 
-	// Pre-validation.
 	if username == "" || password == "" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
-		log.Println("setuser", username, "=> failed")
+		log.Println("update", username, "=> failed")
 		return
 	}
 	users := read("users")
 	if users[username] == nil {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("setuser", username, "=> failed")
+		log.Println("update", username, "=> failed")
 		return
 	}
 	tokens := read("tokens")
 	if tokens[username] == nil {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("setuser", username, "=> failed")
+		log.Println("update", username, "=> failed")
 		return
 	}
 
@@ -141,10 +137,10 @@ func setuser(w http.ResponseWriter, r *http.Request) {
 		users[username] = s
 		store("users", users)
 		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
-		log.Println("setuser", username, "=> success")
+		log.Println("update", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("setuser", username, "=> failed")
+		log.Println("update", username, "=> failed")
 	}
 }
 
@@ -170,9 +166,9 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/api/v1/adduser", adduser)
-	http.HandleFunc("/api/v1/deluser", deluser)
-	http.HandleFunc("/api/v1/setuser", setuser)
+	http.HandleFunc("/api/v1/create", create)
+	http.HandleFunc("/api/v1/remove", remove)
+	http.HandleFunc("/api/v1/update", update)
 	http.HandleFunc("/api/v1/auth", auth)
 	log.Fatal(http.ListenAndServe(":80", nil))
 }
