@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
@@ -9,10 +8,8 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"os"
-	"strings"
 )
 
 type Authentication struct {
@@ -21,7 +18,7 @@ type Authentication struct {
 	Token    string
 }
 
-func authentication(r *http.Request) (string, string, string) {
+func parse(r *http.Request) (string, string, string) {
 	var authentication Authentication
 
 	body, err := io.ReadAll(r.Body)
@@ -36,40 +33,26 @@ func authentication(r *http.Request) (string, string, string) {
 	return username, password, token
 }
 
-func authentication2(r string) (string, string, string) {
-	var authentication Authentication
-	json.Unmarshal([]byte(r), &authentication)
-
-	username := authentication.Username
-	password := authentication.Password
-	token := authentication.Token
-	return username, password, token
-}
-
-func erebor(s string) string {
-	conn, err := net.Dial("tcp", "127.0.0.1:8044")
-	if err != nil {
-		return "(error): could not connect to erebor\n"
-	}
-	defer conn.Close()
-	fmt.Fprintf(conn, s)
-	status, err := bufio.NewReader(conn).ReadString('\n')
-	return strings.TrimRight(status, "\n")
-}
-
-func store(table string, data string) {
-	err := os.WriteFile(table, []byte(data), 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-func read(table string) string {
+// Usage:
+//   t := read("token")
+func read(table string) map[string]interface{} {
 	data, err := os.ReadFile(table)
 	if err != nil {
-		log.Fatal(err)
+		return make(map[string]interface{})
 	}
-	return string(data)
+	var result map[string]interface{}
+	json.Unmarshal([]byte(string(data)), &result)
+	return result
+}
+
+// Usage:
+//   store("token", t)
+func store(table string, data map[string]interface{}) {
+	s, _ := json.MarshalIndent(data, "", "    ")
+	err := os.WriteFile(table, []byte(s), 0644)
+	if err != nil {
+		fmt.Println(err)
+	}
 }
 
 func token() string {
@@ -79,43 +62,47 @@ func token() string {
 }
 
 func adduser(w http.ResponseWriter, r *http.Request) {
-	username, password, _ := authentication(r)
+	username, password, _ := parse(r)
 	if username == "" || password == "" {
 		fmt.Fprintf(w, "{\"error\":\"Missing username or password\"}\n")
 		log.Println("adduser", username, "=> failed")
 		return
 	}
-	s := fmt.Sprintf("get user %s", username)
-	if erebor(s) != "(error): key not found" {
+	users := read("users")
+	if users[username] != nil {
 		// User already exists; but don't reveal that.
 		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
 		log.Println("adduser", username, "=> failed")
 		return
 	}
+
+	// Hash the password before storing it.
 	h := sha256.Sum256([]byte(password))
-	s = fmt.Sprintf("set user %s %x", username, h)
-	e := erebor(s)
-	if e == "OK" {
-		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
-		log.Println("adduser", username, "=> success")
-		s = fmt.Sprintf("del token %s", username)
-		erebor(s)
-	} else {
-		fmt.Fprintf(w, "{\"error\":\"Failed to add user\"}\n")
-		log.Println("adduser", username, "=> failed")
-	}
+	s := fmt.Sprintf("%x", h)
+	users[username] = s
+	store("users", users)
+
+	// Delete any old tokens.
+	tokens := read("tokens")
+	delete(tokens, username)
+	store("tokens", tokens)
+
+	fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
+	log.Println("adduser", username, "=> success")
 }
 
 func deluser(w http.ResponseWriter, r *http.Request) {
-	username, _, token := authentication(r)
-	h := sha256.Sum256([]byte(token))
-	s := fmt.Sprintf("get token %s", username)
-	auth := erebor(s)
+	username, _, t := parse(r)
+	h := sha256.Sum256([]byte(t))
+	tokens := read("tokens")
+	users := read("users")
+
+	auth := tokens[username]
 	if auth == hex.EncodeToString(h[:]) {
-		s := fmt.Sprintf("del user %s", username)
-		erebor(s)
-		s = fmt.Sprintf("del token %s", username)
-		erebor(s)
+		delete(users, username)
+		delete(tokens, username)
+		store("users", users)
+		store("tokens", tokens)
 		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
 		log.Println("deluser", username, "=> success")
 	} else {
@@ -125,26 +112,34 @@ func deluser(w http.ResponseWriter, r *http.Request) {
 }
 
 func setuser(w http.ResponseWriter, r *http.Request) {
-	username, password, token := authentication(r)
+	username, password, token := parse(r)
+
+	// Pre-validation.
 	if username == "" || password == "" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
 		log.Println("setuser", username, "=> failed")
 		return
 	}
-	s := fmt.Sprintf("get user %s", username)
-	if erebor(s) == "(error): key not found" {
+	users := read("users")
+	if users[username] == nil {
+		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
+		log.Println("setuser", username, "=> failed")
+		return
+	}
+	tokens := read("tokens")
+	if tokens[username] == nil {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
 		log.Println("setuser", username, "=> failed")
 		return
 	}
 
 	h := sha256.Sum256([]byte(token))
-	s = fmt.Sprintf("get token %s", username)
-	auth := erebor(s)
+	auth := tokens[username]
 	if auth == hex.EncodeToString(h[:]) {
 		h = sha256.Sum256([]byte(password))
-		s := fmt.Sprintf("set user %s %x", username, h)
-		erebor(s)
+		s := fmt.Sprintf("%x", h)
+		users[username] = s
+		store("users", users)
 		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
 		log.Println("setuser", username, "=> success")
 	} else {
@@ -154,20 +149,19 @@ func setuser(w http.ResponseWriter, r *http.Request) {
 }
 
 func auth(w http.ResponseWriter, r *http.Request) {
-	username, password, _ := authentication(r)
+	username, password, _ := parse(r)
+	users := read("users")
+	tokens := read("tokens")
+
 	h := sha256.Sum256([]byte(password))
-	s := fmt.Sprintf("get user %s", username)
-	auth := erebor(s)
+	auth := users[username]
 	if auth == hex.EncodeToString(h[:]) {
 		t := token()
-		s := fmt.Sprintf("set token %s %x", username, sha256.Sum256([]byte(t)))
-		erebor(s)
-		s = fmt.Sprintf("{\"username\":\"%s\",\"token\":\"%x\"}", username, sha256.Sum256([]byte(t)))
-		store(username, s)
-		log.Println(read(username))
-		u, p, tt := authentication2(read(username))
-		log.Println(u, p, tt)
-		fmt.Fprintf(w, "{\"username\":\"%s\",\"token\":\"%x\"}\n", username, t)
+		ht := sha256.Sum256([]byte(t))
+		s := fmt.Sprintf("%x", ht)
+		tokens[username] = s
+		store("tokens", tokens)
+		fmt.Fprintf(w, "{\"username\":\"%s\",\"token\":\"%s\"}\n", username, t)
 		log.Println("auth", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Authentication failed\"}")
