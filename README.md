@@ -5,7 +5,7 @@
 
 Side-door is an authentication API HTTP server written in Go. Complete with its own built in key-value store, it also handles storing hashed user credentials and tokens.
 
-Don't let hackers in through a back door. Use Side-door — it s secret and requires a key.
+Don't let hackers in through a back door. Use Side-door; it is secret and requires a key. :)
 
 # API
 
