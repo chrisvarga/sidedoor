@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	// "github.com/google/uuid"
 	"io"
 	"log"
 	"net/http"
@@ -59,6 +60,8 @@ func token() string {
 	b := make([]byte, 20)
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)
+	// id := uuid.New()
+	// return id.String()
 }
 
 func signup(w http.ResponseWriter, r *http.Request) {
@@ -108,24 +111,24 @@ func remove(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func update(w http.ResponseWriter, r *http.Request) {
+func edit(w http.ResponseWriter, r *http.Request) {
 	username, password, token := parse(r)
 
 	if username == "" || password == "" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
-		log.Println("update", username, "=> failed")
+		log.Println("edit", username, "=> failed")
 		return
 	}
 	users := read("users")
 	if users[username] == nil {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("update", username, "=> failed")
+		log.Println("edit", username, "=> failed")
 		return
 	}
 	tokens := read("tokens")
 	if tokens[username] == nil {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("update", username, "=> failed")
+		log.Println("edit", username, "=> failed")
 		return
 	}
 
@@ -137,10 +140,10 @@ func update(w http.ResponseWriter, r *http.Request) {
 		users[username] = s
 		store("users", users)
 		fmt.Fprintf(w, "{\"username\":\"%s\"}\n", username)
-		log.Println("update", username, "=> success")
+		log.Println("edit", username, "=> success")
 	} else {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or token\"}")
-		log.Println("update", username, "=> failed")
+		log.Println("edit", username, "=> failed")
 	}
 }
 
@@ -166,9 +169,9 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/api/v1/signup", signup)
-	http.HandleFunc("/api/v1/remove", remove)
-	http.HandleFunc("/api/v1/update", update)
+	http.HandleFunc("/api/v1/new", signup)
+	http.HandleFunc("/api/v1/delete", remove)
+	http.HandleFunc("/api/v1/edit", edit)
 	http.HandleFunc("/api/v1/auth", auth)
 	log.Fatal(http.ListenAndServe(":80", nil))
 	// log.Fatal(http.ListenAndServeTLS(":443", "cert.pem", "key.pem", nil))
