@@ -13,10 +13,22 @@ import (
 	"os"
 )
 
+var SIDE_DOOR = ""
+
 type Authentication struct {
 	Username string
 	Password string
 	Token    string
+}
+
+func side_door(w http.ResponseWriter, r *http.Request) bool {
+	key := r.Header.Get("Authorization")
+	if key != SIDE_DOOR {
+		fmt.Fprintln(w, "{\"error\":\"Authentication failed\"}")
+		// log.Printf("Failed to open Side-door, Authorization='%s'\n", key)
+		return false
+	}
+	return true
 }
 
 func parse(r *http.Request) (string, string, string) {
@@ -65,6 +77,10 @@ func token() string {
 }
 
 func signup(w http.ResponseWriter, r *http.Request) {
+	if !side_door(w, r) {
+		return
+	}
+
 	username, password, _ := parse(r)
 	if username == "" || password == "" {
 		fmt.Fprintf(w, "{\"error\":\"Username or password cannot be empty\"}\n")
@@ -92,6 +108,10 @@ func signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func remove(w http.ResponseWriter, r *http.Request) {
+	if !side_door(w, r) {
+		return
+	}
+
 	username, _, t := parse(r)
 	h := sha256.Sum256([]byte(t))
 	tokens := read("tokens")
@@ -112,8 +132,11 @@ func remove(w http.ResponseWriter, r *http.Request) {
 }
 
 func edit(w http.ResponseWriter, r *http.Request) {
-	username, password, token := parse(r)
+	if !side_door(w, r) {
+		return
+	}
 
+	username, password, token := parse(r)
 	if username == "" || password == "" {
 		fmt.Fprintln(w, "{\"error\":\"Invalid username or password\"}")
 		log.Println("edit", username, "=> failed")
@@ -148,6 +171,10 @@ func edit(w http.ResponseWriter, r *http.Request) {
 }
 
 func auth(w http.ResponseWriter, r *http.Request) {
+	if !side_door(w, r) {
+		return
+	}
+
 	username, password, _ := parse(r)
 	users := read("users")
 	tokens := read("tokens")
@@ -169,6 +196,8 @@ func auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	SIDE_DOOR = token()
+	log.Println("Side-door key:", SIDE_DOOR)
 	http.HandleFunc("/api/v1/new", signup)
 	http.HandleFunc("/api/v1/delete", remove)
 	http.HandleFunc("/api/v1/edit", edit)
