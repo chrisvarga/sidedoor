@@ -1,13 +1,28 @@
 # Side-door
 
-> "Stand by the grey stone when the thrush knocks, and the setting sun with the last light of Durin’s Day will shine upon the key-hole."
-> _The Hobbit_, J. R. R. Tolkien
+> "Stand by the grey stone when the thrush knocks, and the setting sun with the last light of Durin's Day will shine upon the key-hole."
+> --Thorin, _The Hobbit_, J. R. R. Tolkien
 
-Side-door is an authentication API HTTP server written in Go. Complete with its own built in key-value store, it also handles storing hashed user credentials and tokens.
+> "Keep it secret, keep it safe.
+> --Gandalf, _The Fellowship of the Ring_, J. R. R. Tolkien
 
-Don't let hackers in through a back door. Use Side-door; it is secret and requires a key. :)
+Side-door is an HTTP authentication API server written in Go. Complete with its own key-value store, it handles storing hashed user credentials and tokens.
+
+Don't let hackers in through a back door. Use Side-door. :)
 
 # API
+
+Side-door generates a unique key during each startup.
+```bash
+$ go run sidedoor.go
+2022/08/31 05:01:58 Side-door key: 818e28874c434e57e70828803d37900dd8a5412f
+```
+
+All requests to Side-door require the `Authorization` HTTP header to be set to this key.
+```
+SIDE_DOOR=818e28874c434e57e70828803d37900dd8a5412f
+curl -H "Authorization: $SIDE_DOOR" ...
+```
 
 ## New
 > Create a new user, and store their hashed password in the `users` table.
@@ -16,7 +31,7 @@ Don't let hackers in through a back door. Use Side-door; it is secret and requir
 
 #### Example
 ```javascript
-curl -d '{"username":"frodo","password":"baggins"}' -X POST localhost/api/v1/new
+curl -H "Authorization: $SIDE_DOOR" -d '{"username":"frodo","password":"baggins"}' -X POST localhost/api/v1/new
 ```
 ##### Success
 ```javascript
@@ -29,13 +44,13 @@ curl -d '{"username":"frodo","password":"baggins"}' -X POST localhost/api/v1/new
 
 
 ## Auth
-> Authenticate a user, and store the newly generated token in the `tokens` table — hashed, of course.
+> Authenticate a user, and store the newly generated token in the `tokens` table, hashed, of course.
 
 `/api/v1/auth`
 
 #### Example
 ```javascript
-curl -d '{"username":"frodo","password":"baggins"}' -X POST localhost/api/v1/auth
+curl -H "Authorization: $SIDE_DOOR" -d '{"username":"frodo","password":"baggins"}' -X POST localhost/api/v1/auth
 ```
 ##### Success
 ```javascript
@@ -54,7 +69,7 @@ curl -d '{"username":"frodo","password":"baggins"}' -X POST localhost/api/v1/aut
 
 #### Example
 ```javascript
-curl -d '{"username":"frodo","password":"Abcd1234","token":"598a5593-b2b9-4426-84b8-dce4d5cd9996"}' -X POST localhost/api/v1/edit
+curl -H "Authorization: $SIDE_DOOR" -d '{"username":"frodo","password":"Abcd1234","token":"598a5593-b2b9-4426-84b8-dce4d5cd9996"}' -X POST localhost/api/v1/edit
 ```
 ##### Success
 ```javascript
@@ -72,7 +87,7 @@ curl -d '{"username":"frodo","password":"Abcd1234","token":"598a5593-b2b9-4426-8
 
 #### Example
 ```javascript
-curl -d '{"username":"frodo","token":"598a5593-b2b9-4426-84b8-dce4d5cd9996"}' -X POST localhost/api/v1/delete
+curl -H "Authorization: $SIDE_DOOR" -d '{"username":"frodo","token":"598a5593-b2b9-4426-84b8-dce4d5cd9996"}' -X POST localhost/api/v1/delete
 ```
 ##### Success
 ```javascript
